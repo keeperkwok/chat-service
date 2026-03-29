@@ -1,4 +1,5 @@
 import json
+import time
 from typing import AsyncGenerator
 
 from fastapi import HTTPException, status
@@ -56,15 +57,24 @@ async def chat_stream(
 
     # Stream from Azure OpenAI
     full_reply = ""
+    token_count: int | None = None
+    ttf_ms: int | None = None
+    start_time = time.monotonic()
+
     try:
         stream = await _client.chat.completions.create(
             model=settings.azure_openai_deployment,
             messages=messages,
             stream=True,
+            stream_options={"include_usage": True},
         )
         async for chunk in stream:
+            if chunk.usage:
+                token_count = chunk.usage.total_tokens
             delta = chunk.choices[0].delta.content if chunk.choices else None
             if delta:
+                if ttf_ms is None:
+                    ttf_ms = int((time.monotonic() - start_time) * 1000)
                 full_reply += delta
                 yield f"data: {json.dumps({'delta': delta}, ensure_ascii=False)}\n\n"
 
@@ -73,6 +83,8 @@ async def chat_stream(
         yield "data: [DONE]\n\n"
         return
 
+    duration_ms = int((time.monotonic() - start_time) * 1000)
+    yield f"data: {json.dumps({'meta': {'token_count': token_count, 'duration_ms': duration_ms, 'ttf_ms': ttf_ms}})}\n\n"
     yield "data: [DONE]\n\n"
 
     # Save assistant reply and touch session.updated_at
@@ -81,6 +93,9 @@ async def chat_stream(
         session_id=session_id,
         role=MessageRole.assistant,
         content=full_reply,
+        token_count=token_count,
+        duration_ms=duration_ms,
+        ttf_ms=ttf_ms,
     )
     db.add(assistant_msg)
     # ON UPDATE CURRENT_TIMESTAMP triggers on any column change

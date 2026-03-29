@@ -17,6 +17,9 @@ class MessageOut(BaseModel):
     role: str
     content: str
     created_at: datetime
+    token_count: Optional[int] = None
+    duration_ms: Optional[int] = None
+    ttf_ms: Optional[int] = None
 
     model_config = {"from_attributes": True}
 

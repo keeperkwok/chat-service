@@ -1,5 +1,6 @@
 import enum
 from datetime import datetime
+from typing import Optional
 from sqlalchemy import BigInteger, DateTime, Enum, ForeignKey, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -24,3 +25,6 @@ class ChatMessage(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")
     )
+    token_count: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    duration_ms: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    ttf_ms: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
